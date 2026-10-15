@@ -7,13 +7,14 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy package manifests
+# Copy package manifests and .npmrc
+COPY .npmrc ./
 COPY package*.json ./
 COPY api/package*.json ./api/
 COPY web/package*.json ./web/
 
 # Install dependencies across all workspaces
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy source code and Prisma schema
 COPY . .
@@ -23,6 +24,7 @@ ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/edtech?schema=pu
 RUN npx prisma generate
 
 # Build both API and Web
+ENV NEXT_PUBLIC_API_URL=/api
 RUN npm run build
 
 # Ensure entrypoint is executable
