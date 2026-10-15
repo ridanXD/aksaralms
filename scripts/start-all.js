@@ -2,31 +2,28 @@ const { spawn } = require('child_process');
 
 console.log('[Runner] Starting Aksara LMS (API on :8080 + Web on :3000)...');
 
-function runProcess(name, command, args, customEnv) {
-  const proc = spawn(command, args, {
-    stdio: 'inherit',
-    shell: true,
-    env: { ...process.env, ...customEnv },
-  });
-
-  proc.on('error', (err) => {
-    console.error(`[${name}] Error:`, err);
-  });
-
-  proc.on('close', (code) => {
-    console.log(`[${name}] Exited with code ${code}`);
-  });
-
-  return proc;
-}
-
-const api = runProcess('API', 'npm', ['run', 'start:api'], {
-  PORT: process.env.API_PORT || '8080',
+const api = spawn('npm', ['run', 'start:api'], {
+  stdio: 'inherit',
+  shell: true,
+  env: { ...process.env, PORT: '8080' },
 });
 
-const web = runProcess('WEB', 'npm', ['run', 'start:web'], {
-  PORT: process.env.WEB_PORT || '3000',
-  HOSTNAME: '0.0.0.0',
+const web = spawn('npm', ['run', 'start:web'], {
+  stdio: 'inherit',
+  shell: true,
+  env: { ...process.env, PORT: '3000', HOSTNAME: '0.0.0.0' },
+});
+
+api.on('error', (err) => console.error('[API] Error:', err));
+web.on('error', (err) => console.error('[WEB] Error:', err));
+
+api.on('close', (code) => {
+  console.log(`[API] Exited with code ${code}`);
+});
+
+web.on('close', (code) => {
+  console.log(`[WEB] Exited with code ${code}`);
+  process.exit(code || 0);
 });
 
 function shutdown() {
@@ -38,3 +35,6 @@ function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+// Keep event loop alive
+setInterval(() => {}, 60000);

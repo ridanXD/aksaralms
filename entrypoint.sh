@@ -3,6 +3,15 @@ set -e
 
 echo "[Entrypoint] Initializing Aksara LMS..."
 
+cleanup() {
+  echo "[Entrypoint] Stopping services..."
+  if [ -n "$API_PID" ]; then
+    kill -TERM "$API_PID" 2>/dev/null || true
+  fi
+  exit 0
+}
+trap cleanup SIGTERM SIGINT
+
 # Check if DATABASE_URL is pointing to localhost or is default
 if [[ -z "$DATABASE_URL" || "$DATABASE_URL" == *"localhost"* || "$DATABASE_URL" == *"127.0.0.1"* || "$DATABASE_URL" == *"password_kamu"* ]]; then
   echo "[Entrypoint] Starting local PostgreSQL service..."
@@ -30,5 +39,9 @@ npx prisma db push --skip-generate || true
 echo "[Entrypoint] Checking seed data..."
 npm run seed || true
 
-echo "[Entrypoint] Starting Aksara LMS (Express API :8080 & Next.js :3000)..."
-exec node scripts/start-all.js
+echo "[Entrypoint] Starting Backend (Express API on :8080)..."
+PORT=8080 npm run start:api &
+API_PID=$!
+
+echo "[Entrypoint] Starting Frontend (Next.js on 0.0.0.0:3000)..."
+PORT=3000 HOSTNAME=0.0.0.0 exec npm run start:web
