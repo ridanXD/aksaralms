@@ -15,6 +15,7 @@
     "build": "npm run build:api && npm run build:web",
     "build:api": "npm run --prefix api build",
     "build:web": "npm run --prefix web build",
+    "start": "node scripts/start-all.js",
     "start:api": "npm run --prefix api start",
     "start:web": "npm run --prefix web start",
     "seed": "npm run --prefix api seed",
