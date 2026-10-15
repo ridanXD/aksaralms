@@ -1,0 +1,1675 @@
+Lanjutkan langsung dari implementasi yang baru saja kamu kerjakan.
+
+JANGAN membuat roadmap baru dan JANGAN membagi pekerjaan menjadi fase.
+
+Anggap pekerjaan sebelumnya sebagai baseline baru Aksara.
+
+Sekarang lakukan **deep verification + optimization + completion** terhadap seluruh sistem.
+
+Tujuannya bukan sekadar memastikan file dan endpoint sudah dibuat, tetapi memastikan seluruh intelligence system benar-benar bekerja secara end-to-end dengan data nyata.
+
+---
+
+# 1. VERIFY TOPIC MASTERY END-TO-END
+
+Audit implementasi `TopicMastery`.
+
+Pastikan lifecycle-nya benar:
+
+```text
+Student
+ ↓
+Quiz
+ ↓
+QuizAnswer
+ ↓
+QuizResult
+ ↓
+Topic Performance
+ ↓
+TopicMastery
+```
+
+Kemudian:
+
+```text
+TopicMastery
+ ↓
+AI Analysis
+ ↓
+Training
+ ↓
+Post Training Evaluation
+ ↓
+TopicMastery Update
+```
+
+Pastikan tidak ada kondisi di mana:
+
+* quiz selesai tetapi mastery tidak berubah
+* training selesai tetapi mastery tidak berubah
+* mastery berubah tetapi WeakTopic tidak ikut menyesuaikan
+* mastery dibuat duplicate untuk topic yang sama
+* mastery menggunakan data student lain
+* mastery menggunakan data course yang salah
+
+Pastikan uniqueness dan relation antar:
+
+```text
+student
+course
+topic
+```
+
+benar.
+
+Jika schema saat ini memungkinkan duplicate TopicMastery untuk student + course + topic, perbaiki.
+
+---
+
+# 2. REVIEW MASTERY ALGORITHM
+
+Review `mastery.service.ts` secara kritis.
+
+Pastikan algoritmanya:
+
+* deterministic
+* explainable
+* bounded 0–100
+* tidak menghasilkan NaN
+* tidak menghasilkan negative value
+* tidak tiba-tiba melonjak ekstrem
+* tidak terlalu bergantung pada satu quiz
+* tetap memperhatikan recent performance
+
+Review penggunaan:
+
+```text
+accuracy
+recentAccuracy
+speed factor
+trend
+confidence
+```
+
+Pastikan setiap variabel benar-benar memiliki fungsi.
+
+Jangan mempertahankan metric hanya karena sudah dibuat.
+
+Jika ada formula yang arbitrer atau tidak masuk akal, perbaiki.
+
+Namun jangan membuat algoritma machine learning kompleks.
+
+Aksara harus dapat menjelaskan algoritma mastery kepada juri secara sederhana.
+
+---
+
+# 3. MASTERy MUST BE MEANINGFUL
+
+Pastikan contoh seperti ini masuk akal:
+
+```text
+Student:
+SQL JOIN
+
+Previous:
+42%
+
+After several correct attempts:
+55%
+
+After successful adaptive training:
+74%
+
+After repeated mastery:
+86%
+```
+
+Dan jika performa memburuk:
+
+```text
+86%
+↓
+72%
+```
+
+harus mungkin terjadi.
+
+Mastery bukan achievement permanen yang hanya bisa naik.
+
+---
+
+# 4. WEAKTOPIC SYNCHRONIZATION
+
+Audit hubungan:
+
+```text
+TopicMastery
+↔
+WeakTopic
+```
+
+Pastikan WeakTopic tidak menjadi sumber kebenaran terpisah yang menghasilkan data contradictory.
+
+Contoh:
+
+```text
+TopicMastery = 87
+WeakTopic = active
+```
+
+harus memiliki alasan yang jelas atau tidak boleh terjadi.
+
+Buat synchronization rule yang konsisten.
+
+Jika mastery sudah melewati threshold tertentu:
+
+```text
+WeakTopic
+→ resolved
+```
+
+Jika mastery kembali turun:
+
+```text
+WeakTopic
+→ active
+```
+
+Jangan meninggalkan weak topic lama yang sudah tidak relevan.
+
+---
+
+# 5. CLOSED REMEDIATION LOOP
+
+Ini harus menjadi salah satu fitur paling kuat Aksara.
+
+Verifikasi alur:
+
+```text
+QUIZ
+ ↓
+WEAK TOPIC
+ ↓
+PRE TRAINING PERFORMANCE
+ ↓
+AI TRAINING
+ ↓
+POST TRAINING PERFORMANCE
+ ↓
+IMPROVEMENT DELTA
+ ↓
+TOPIC MASTERY UPDATE
+ ↓
+WEAK TOPIC UPDATE
+ ↓
+RECOMMENDATION UPDATE
+```
+
+Semua harus menggunakan database aktual.
+
+Tidak boleh ada angka yang hanya dihitung frontend.
+
+---
+
+# 6. IMPROVEMENT DELTA
+
+Review:
+
+```text
+preAccuracy
+postAccuracy
+improvementDelta
+```
+
+Pastikan definisinya konsisten.
+
+Contoh:
+
+```text
+pre = 40
+post = 75
+
+delta = +35 percentage points
+```
+
+Jangan salah menginterpretasikan menjadi:
+
+```text
+87.5% improvement
+```
+
+kecuali memang metric yang dimaksud adalah relative improvement.
+
+Gunakan terminology yang jelas agar mudah dijelaskan saat presentasi.
+
+---
+
+# 7. AI TRAINING QUALITY
+
+Audit prompt AI.
+
+AI harus mendapatkan context yang relevan:
+
+```text
+topic
+mastery
+weakness
+previous performance
+difficulty
+previous questions
+student mistakes
+```
+
+Jangan hanya mengirim:
+
+```text
+Generate 5 questions about SQL.
+```
+
+Jika context tersedia di database, gunakan.
+
+---
+
+# 8. ADAPTIVE DIFFICULTY
+
+Pastikan difficulty benar-benar adaptive.
+
+Contoh:
+
+```text
+Mastery < 40
+→ foundational
+
+40–60
+→ basic application
+
+60–80
+→ intermediate
+
+80+
+→ advanced
+```
+
+Tidak harus memakai threshold persis seperti contoh.
+
+Yang penting terdapat hubungan nyata:
+
+```text
+student performance
+→ difficulty
+```
+
+Jika student gagal terus:
+
+```text
+difficulty ↓
+```
+
+Jika student konsisten berhasil:
+
+```text
+difficulty ↑
+```
+
+---
+
+# 9. AI QUESTION VALIDATION
+
+Review `ai.fallback.ts`.
+
+Pastikan fallback:
+
+* menghasilkan schema valid
+* memiliki correct answer valid
+* options valid
+* explanation tersedia
+* topic sesuai
+* difficulty sesuai
+* tidak menghasilkan duplicate obvious
+* tidak menyebabkan training crash
+
+Pastikan fallback bukan sekadar:
+
+```text
+Lorem ipsum question
+```
+
+atau soal placeholder.
+
+Fallback harus tetap dapat digunakan sebagai latihan nyata.
+
+---
+
+# 10. AI FAILURE SCENARIOS
+
+Test:
+
+```text
+AI timeout
+AI returns malformed JSON
+AI returns empty response
+AI returns missing field
+AI provider unavailable
+AI rate limit
+```
+
+Expected:
+
+```text
+Application remains functional
+```
+
+bukan:
+
+```text
+502
+blank page
+uncaught exception
+```
+
+Jika provider abstraction mendukung fallback provider, pastikan mekanismenya benar.
+
+---
+
+# 11. NEXT BEST ACTION
+
+Audit endpoint dan widget Next Best Action.
+
+Recommendation harus benar-benar berubah berdasarkan kondisi student.
+
+Contoh:
+
+Student memiliki:
+
+```text
+Weakest Topic:
+Normalization
+Mastery:
+38%
+```
+
+maka recommendation harus memprioritaskan:
+
+```text
+Normalization
+```
+
+Jika student memiliki assignment deadline besok dan topic mastery cukup baik, sistem boleh memprioritaskan assignment.
+
+Recommendation harus berdasarkan data.
+
+Bukan static text.
+
+---
+
+# 12. STUDENT PROFILE
+
+Pastikan Student Profile bukan sekadar kumpulan statistik.
+
+Profile harus memberikan gambaran:
+
+```text
+Strengths
+Weaknesses
+Improvement
+Current Focus
+Recent Performance
+Recommended Action
+```
+
+Semua harus berasal dari data aktual.
+
+---
+
+# 13. TEACHER INTELLIGENCE
+
+Audit endpoint Teacher Intelligence secara serius.
+
+Teacher harus mendapatkan insight yang dapat ditindaklanjuti.
+
+Minimal:
+
+```text
+Class Mastery
+Hardest Topics
+Weakest Topics
+At-Risk Students
+Improving Students
+Declining Students
+```
+
+Jika data tersedia, tambahkan:
+
+```text
+Topic mastery distribution
+Quiz performance
+Training improvement
+Assignment completion
+Attendance
+```
+
+Jangan hanya mengembalikan raw database rows.
+
+Lakukan aggregation yang bermakna.
+
+---
+
+# 14. AT-RISK DETECTION
+
+Review formula.
+
+Jangan membuat:
+
+```text
+atRisk = score < 50
+```
+
+saja.
+
+Gunakan kombinasi signal jika tersedia:
+
+```text
+mastery
+trend
+quiz accuracy
+assignment completion
+attendance
+recent performance
+```
+
+Dan simpan alasan.
+
+Contoh:
+
+```text
+At Risk
+
+Reasons:
+- mastery declining
+- low recent quiz accuracy
+- incomplete assignments
+```
+
+Ini jauh lebih valuable untuk guru.
+
+---
+
+# 15. TEACHER RECOMMENDATION
+
+Jangan hanya:
+
+```text
+Student X is at risk.
+```
+
+Berikan recommendation.
+
+Contoh:
+
+```text
+Student:
+Rizky
+
+Main issue:
+SQL JOIN mastery 41%
+
+Recommended action:
+Assign SQL JOIN Fundamentals
+and start adaptive remediation.
+```
+
+Pastikan recommendation berasal dari data.
+
+---
+
+# 16. LEADERBOARD
+
+Audit kembali leaderboard setelah fix.
+
+Test:
+
+```text
+1 participant
+2 participants
+multiple participants
+tie
+same score
+different response time
+```
+
+Pastikan:
+
+```text
+rank 1 ≠ everyone
+```
+
+dan ranking dihitung terhadap seluruh participant.
+
+Pastikan query tetap performant.
+
+---
+
+# 17. SCORE INTEGRITY
+
+Audit semua client → server flow.
+
+Pastikan client tidak dapat mengirim:
+
+```text
+score = 1000
+responseTime = 1
+isCorrect = true
+```
+
+dan membuat backend mempercayainya.
+
+Server harus menentukan:
+
+```text
+correctness
+score
+speed bonus
+streak
+final score
+```
+
+berdasarkan data yang authoritative.
+
+---
+
+# 18. GRADE INTEGRITY
+
+Pastikan:
+
+```text
+quiz
+assignment
+grade
+course grade
+```
+
+memiliki formula konsisten.
+
+Cari kembali semua hardcoded:
+
+```text
+0
+100
+maxScore
+quizResults
+grades
+```
+
+yang seharusnya berasal dari database.
+
+Jangan menghapus constant yang memang merupakan business rule.
+
+Bedakan:
+
+```text
+business constant
+```
+
+dengan:
+
+```text
+fake data
+```
+
+---
+
+# 19. DATABASE QUALITY
+
+Review Prisma schema setelah perubahan.
+
+Pastikan:
+
+```text
+TopicMastery
+TrainingSession
+WeakTopic
+QuizResult
+QuizAnswer
+```
+
+memiliki relation dan index yang masuk akal.
+
+Pertimbangkan unique constraint:
+
+```text
+student + course + topic
+```
+
+jika sesuai dengan model data.
+
+Pastikan migration bersih.
+
+Jangan membuat duplicate migration yang tidak perlu.
+
+---
+
+# 20. TRANSACTION SAFETY
+
+Untuk operasi penting, perhatikan atomicity.
+
+Misalnya ketika training selesai:
+
+```text
+TrainingSession update
++
+Mastery update
++
+WeakTopic update
+```
+
+Jangan sampai hanya sebagian berhasil.
+
+Jika memang satu logical operation, gunakan transaction jika sesuai dengan architecture.
+
+Hal yang sama untuk operasi quiz/result yang mempengaruhi beberapa tabel.
+
+---
+
+# 21. CONCURRENCY
+
+Pikirkan kemungkinan:
+
+```text
+double submit quiz
+double training completion
+duplicate answer
+duplicate attendance
+```
+
+Pastikan backend tidak menghasilkan duplicate atau inconsistent state.
+
+Jangan hanya mengandalkan tombol disable di frontend.
+
+---
+
+# 22. API CONTRACT
+
+Pastikan endpoint baru:
+
+```text
+Next Best Action
+Student Profile
+Teacher Intelligence
+```
+
+memiliki response yang konsisten.
+
+Handle:
+
+```text
+loading
+empty
+error
+success
+```
+
+Frontend tidak boleh crash ketika:
+
+```text
+no course
+no quiz
+no mastery
+no training
+no recommendation
+```
+
+---
+
+# 23. EMPTY DATA
+
+Test student baru.
+
+Student baru harus tetap dapat menggunakan aplikasi meskipun:
+
+```text
+0 quiz
+0 training
+0 mastery
+0 assignment
+0 attendance
+```
+
+Jangan menghasilkan:
+
+```text
+NaN
+Infinity
+undefined
+negative score
+```
+
+---
+
+# 24. SEED DATA
+
+Review seed.
+
+Pastikan seed dapat menghasilkan kondisi yang cukup kaya untuk demo.
+
+Harus ada student dengan:
+
+```text
+strong performance
+weak performance
+improving performance
+declining performance
+```
+
+Dan topic yang berbeda.
+
+Tetapi analytics tetap harus dihitung dari data tersebut.
+
+Jangan seed hasil analytics secara manual jika hasil tersebut seharusnya dihitung engine.
+
+---
+
+# 25. END-TO-END DEMO TEST
+
+Simulasikan demo juri.
+
+Gunakan satu student yang sengaja memiliki kelemahan.
+
+Flow:
+
+```text
+LOGIN
+ ↓
+OPEN COURSE
+ ↓
+LEARN
+ ↓
+QUIZ
+ ↓
+WRONG ANSWERS
+ ↓
+WEAK TOPIC DETECTED
+ ↓
+MASTERY LOW
+ ↓
+AI ANALYSIS
+ ↓
+ADAPTIVE TRAINING
+ ↓
+TRAINING COMPLETE
+ ↓
+POST PERFORMANCE
+ ↓
+MASTERY IMPROVES
+ ↓
+RECOMMENDATION CHANGES
+ ↓
+TEACHER INSIGHT CHANGES
+```
+
+Pastikan tidak ada langkah yang membutuhkan manipulasi database manual.
+
+Jika demo flow belum bisa berjalan, perbaiki sampai bisa.
+
+---
+
+# 26. COMPETITION "WOW MOMENT"
+
+Setelah sistem stabil, pastikan satu flow paling kuat dapat menunjukkan:
+
+```text
+Before:
+Database Normalization
+Mastery 42%
+
+↓ AI intervention
+
+After:
+Mastery 78%
+
+Improvement:
++36 percentage points
+```
+
+Kemudian:
+
+```text
+Weak Topic:
+resolved / improved
+```
+
+dan:
+
+```text
+Next Best Action:
+moves to next priority
+```
+
+serta teacher analytics ikut berubah.
+
+Ini harus menjadi bukti konkret bahwa Aksara bukan LMS biasa.
+
+---
+
+# 27. FIND MORE PROBLEMS
+
+Jangan hanya mengikuti checklist ini.
+
+Setelah selesai, lakukan codebase review sekali lagi.
+
+Cari sendiri:
+
+```text
+TODO
+FIXME
+mock
+dummy
+hardcoded
+console.log
+unused endpoint
+unused model
+unused service
+duplicated logic
+dead code
+unsafe query
+missing authorization
+missing validation
+```
+
+Jika menemukan masalah yang jelas dan masih dalam scope:
+
+**langsung perbaiki.**
+
+---
+
+# 28. TEST EVERYTHING
+
+Setelah semua implementasi:
+
+jalankan:
+
+```text
+typecheck
+lint
+build
+tests
+Prisma validation
+database migration validation
+```
+
+Jika test gagal:
+
+**jangan hanya melaporkan failure.**
+
+Trace penyebabnya dan perbaiki.
+
+Jika build gagal:
+
+perbaiki.
+
+Jika type error:
+
+perbaiki.
+
+Jika integration error:
+
+perbaiki.
+
+Teruskan sampai stabil.
+
+---
+
+# 29. FINAL SELF-ASSESSMENT
+
+Setelah semuanya selesai, evaluasi Aksara dari perspektif:
+
+### Student
+
+Apakah Aksara benar-benar membantu saya mengetahui apa yang harus saya pelajari?
+
+### Teacher
+
+Apakah Aksara membantu saya mengetahui siapa yang kesulitan dan apa yang harus dilakukan?
+
+### Judge
+
+Apakah saya dapat melihat inovasi teknologi yang jelas?
+
+### Engineer
+
+Apakah architecture-nya reliable dan maintainable?
+
+### Product
+
+Apakah semua fitur membentuk satu ecosystem?
+
+---
+
+# FINAL SUCCESS CRITERIA
+
+Saya ingin codebase berakhir dalam kondisi:
+
+```text
+AUTH
+✓ secure
+
+LMS
+✓ functional
+
+QUIZ
+✓ competitive
+✓ server-side scoring
+
+LEADERBOARD
+✓ correct
+
+GRADES
+✓ consistent
+
+TOPIC MASTERY
+✓ persistent
+✓ dynamic
+✓ explainable
+
+WEAK TOPICS
+✓ synchronized
+
+AI
+✓ contextual
+✓ adaptive
+✓ resilient
+
+TRAINING
+✓ measurable
+
+PRE/POST
+✓ tracked
+
+RECOMMENDATION
+✓ personalized
+
+STUDENT PROFILE
+✓ actionable
+
+TEACHER INTELLIGENCE
+✓ actionable
+
+AT-RISK
+✓ explainable
+
+DATABASE
+✓ consistent
+
+SECURITY
+✓ hardened
+
+PERFORMANCE
+✓ reasonable
+
+TESTING
+✓ passing
+
+DEMO
+✓ end-to-end
+```
+
+# VERY IMPORTANT
+
+**JANGAN BERHENTI DI LAPORAN.**
+
+Kalau menemukan masalah → perbaiki.
+
+Kalau menemukan missing integration → integrasikan.
+
+Kalau menemukan bug → fix.
+
+Kalau menemukan schema problem → migration.
+
+Kalau menemukan test failure → debug.
+
+Kalau menemukan endpoint belum digunakan → hubungkan.
+
+Kalau menemukan hardcoded fake data → ganti dengan real data.
+
+Kalau menemukan feature yang sudah dibuat tetapi belum memberikan value → sempurnakan.
+
+Jangan menunggu instruksi tambahan dari saya selama solusinya jelas dan masih berada dalam scope Aksara.
+
+**LANGSUNG EKSEKUSI SAMPAI SELESAI.**
+
+Jangan redesign UI besar-besaran.
+
+Fokus pada **functional excellence, intelligence, integration, reliability, dan measurable learning outcome**.
+
+Setelah benar-benar selesai, berikan saya:
+
+1. Ringkasan perubahan yang benar-benar dilakukan.
+2. File yang diubah.
+3. Database/schema changes.
+4. Test yang dijalankan dan hasilnya.
+5. Masalah yang ditemukan dan diperbaiki.
+6. End-to-end flow yang berhasil diverifikasi.
+7. Jika masih ada limitation, jelaskan secara jujur.
+
+Jangan mengklaim fitur selesai jika hanya dibuat secara superficial.
+
+---
+
+Aksara sudah dinyatakan selesai secara end-to-end berdasarkan test-e2e.ts.
+
+Sekarang lakukan FINAL BRUTAL VERIFICATION terhadap seluruh implementasi yang baru saja dibuat.
+
+Jangan membuat roadmap, jangan membagi pekerjaan menjadi fase, dan jangan berhenti untuk meminta approval. Langsung audit seluruh codebase dan perbaiki semua masalah yang ditemukan secara autonomous.
+
+Fokus utama sekarang bukan menambah banyak fitur baru, tetapi memastikan semua fitur yang sudah ada benar-benar production/competition-ready, konsisten, aman, dan tidak hanya terlihat berhasil pada happy path.
+
+HASIL E2E YANG SUDAH TERBUKTI:
+
+* JWT STUDENT dan TEACHER valid.
+* Next Best Action berhasil mendeteksi topik terlemah dan memberikan aksi latihan adaptif.
+* Student Profile mencatat Mastery 69% dengan 26 topik.
+* Server-side quiz scoring mencegah manipulasi skor.
+* Duplicate answer ditolak.
+* Leaderboard ranking menggunakan window function terhadap seluruh participant.
+* Weak topic → AI remediation → training → post-training berhasil.
+* Baseline 0% → Post-Training 100%.
+* Mastery meningkat 24 → 62 (+38 poin).
+* Trend berubah menjadi IMPROVING.
+* Teacher Intelligence mengidentifikasi Normalisasi sebagai critical topic.
+* 67% siswa struggling pada topik tersebut.
+* At-Risk detection menemukan 3 siswa dengan diagnosis dan rekomendasi intervensi.
+
+JANGAN HANYA PERCAYA HASIL TEST TERSEBUT.
+
+==================================================
+
+1. AUDIT TOPIC MASTERY SECARA MATEMATIS
+   ==================================================
+
+Periksa implementation mastery.service.ts dan seluruh caller-nya.
+
+Pastikan:
+
+* mastery selalu berada pada 0–100.
+* tidak mungkin menghasilkan NaN, Infinity, null, atau angka di luar range.
+* tidak terjadi lonjakan mastery yang tidak masuk akal dari satu aktivitas.
+* mastery bisa meningkat ketika siswa membaik.
+* mastery bisa turun ketika performa memburuk.
+* mastery bisa stabil ketika performa konsisten.
+* trend IMPROVING/STABLE/DECLINING benar-benar berasal dari data.
+* accuracy dan recentAccuracy memiliki definisi yang jelas.
+* confidence tidak hanya menjadi angka dekoratif.
+* speed factor benar-benar masuk akal secara pedagogis.
+* jumlah soal terlalu sedikit tidak menyebabkan mastery langsung melonjak ekstrem.
+* data lama dan data terbaru memiliki pengaruh yang masuk akal.
+
+Pastikan algoritma tetap deterministic dan explainable.
+
+Jangan menggunakan ML kompleks hanya untuk membuat sistem terlihat pintar.
+
+==================================================
+2. AUDIT CLOSED-LOOP REMEDIATION
+================================
+
+Verifikasi alur lengkap:
+
+QUIZ
+→ WEAK TOPIC
+→ BASELINE PERFORMANCE
+→ AI TRAINING
+→ POST-TRAINING PERFORMANCE
+→ IMPROVEMENT DELTA
+→ TOPIC MASTERY UPDATE
+→ WEAK TOPIC UPDATE
+→ NEXT BEST ACTION UPDATE
+
+Pastikan tidak ada data yang hanya dihitung sementara tetapi tidak disimpan.
+
+Pastikan:
+
+* preAccuracy benar-benar berasal dari performa sebelum training.
+* postAccuracy berasal dari performa setelah training.
+* improvementDelta konsisten.
+* percentage-point improvement tidak tertukar dengan relative percentage improvement.
+* mastery update benar-benar menggunakan hasil training.
+* weak topic dapat hilang ketika mastery membaik.
+* weak topic tetap ada jika siswa masih membutuhkan remediation.
+* recommendation berubah setelah mastery berubah.
+
+Test juga skenario:
+
+1. siswa gagal → training → membaik
+2. siswa gagal → training → tetap gagal
+3. siswa awalnya kuat → performa menurun
+4. siswa belum punya histori
+5. siswa hanya memiliki 1–2 attempt
+6. siswa memiliki banyak attempt
+
+Jangan hanya test happy path.
+
+==================================================
+3. AUDIT AI ENGINE
+==================
+
+Periksa seluruh AI prompt dan context yang dikirim ke provider.
+
+Pastikan AI benar-benar menerima context seperti:
+
+* topic
+* mastery
+* accuracy
+* recent performance
+* previous mistakes
+* difficulty
+* training history
+* question history
+* weak topics
+
+Jangan sampai AI hanya menerima prompt generik seperti:
+
+"buatkan soal Database."
+
+Pastikan output AI divalidasi menggunakan schema yang ketat.
+
+Jika output malformed:
+
+AI
+→ validation
+→ deterministic fallback
+
+bukan:
+
+AI
+→ malformed JSON
+→ crash / 500
+
+Test provider failure, timeout, malformed response, empty response, dan partial response.
+
+Pastikan API key tidak pernah masuk ke frontend/browser response.
+
+==================================================
+4. ADAPTIVE QUESTION QUALITY
+============================
+
+Pastikan difficulty benar-benar adaptif.
+
+Contoh:
+
+mastery rendah
+→ concept reinforcement
+→ easy/medium
+
+mastery sedang
+→ medium
+
+mastery tinggi
+→ harder application/problem solving
+
+Jangan hanya mengganti string "difficulty".
+
+Question generation harus mempertimbangkan:
+
+* weak concept
+* previous mistakes
+* mastery
+* question history
+* training history
+
+Pastikan soal yang sama tidak terus muncul.
+
+Tambahkan deterministic duplicate prevention apabila diperlukan.
+
+==================================================
+5. LEADERBOARD & COMPETITIVE SYSTEM
+===================================
+
+Audit kembali:
+
+* ranking
+* score
+* accuracy
+* speed bonus
+* streak
+* tie handling
+* pagination
+* user rank
+* empty leaderboard
+* concurrent submissions
+
+Pastikan score hanya dapat dihitung server.
+
+Client tidak boleh mengirim final score sebagai sumber kebenaran.
+
+Test:
+
+* submit jawaban dua kali secara bersamaan.
+* request dimanipulasi.
+* answer untuk session milik user lain.
+* answer untuk question yang tidak termasuk session.
+* session expired.
+* session sudah completed.
+* user mencoba mengubah score.
+
+Semua harus ditolak dengan aman.
+
+Competitive mechanics harus tetap educational.
+
+==================================================
+6. GRADE INTEGRITY
+==================
+
+Audit seluruh grade calculation.
+
+Pastikan:
+
+* quiz score berasal dari hasil quiz sebenarnya.
+* assignment score berasal dari data assignment sebenarnya.
+* maxScore tidak hardcoded/arbitrary.
+* total grade konsisten.
+* teacher hanya dapat mengubah data yang memang boleh diubah.
+* student tidak dapat mengubah nilai dirinya sendiri.
+* tidak ada IDOR melalui ID request.
+
+Test juga empty grade data.
+
+==================================================
+7. TEACHER INTELLIGENCE
+=======================
+
+Jangan berhenti pada agregasi angka.
+
+Pastikan Teacher Intelligence menghasilkan insight yang actionable.
+
+Minimal mampu menjawab:
+
+* topik mana yang paling sulit?
+* berapa siswa yang struggling?
+* siapa yang at-risk?
+* kenapa mereka at-risk?
+* apakah performa mereka membaik atau menurun?
+* intervensi apa yang disarankan?
+
+At-risk harus explainable.
+
+Contoh diagnosis:
+
+* low mastery
+* declining recent accuracy
+* repeated failure
+* missing assignment
+* low attendance
+* weak topic persistence
+
+Jangan membuat diagnosis berdasarkan satu threshold saja jika data memungkinkan multi-signal.
+
+Pastikan rekomendasi intervensi masuk akal secara pedagogis.
+
+==================================================
+8. STUDENT PROFILE
+==================
+
+Audit Student Profile.
+
+Pastikan semua data berasal dari database nyata.
+
+Profile minimal harus mampu menunjukkan:
+
+* overall mastery
+* strongest topics
+* weakest topics
+* improvement
+* declining areas
+* recent performance
+* recommended next action
+
+Jangan tampilkan fake/demo values.
+
+Jika user baru dan belum punya data:
+
+gunakan empty state yang benar, bukan angka palsu.
+
+==================================================
+9. NEXT BEST ACTION
+===================
+
+Pastikan recommendation engine deterministic dan explainable.
+
+Prioritas harus masuk akal.
+
+Contoh:
+
+weak topic + declining performance
+→ remedial training
+
+deadline assignment dekat
+→ assignment
+
+unfinished learning material
+→ continue learning
+
+mastery sudah tinggi
+→ harder practice
+
+Tidak boleh selalu mengembalikan recommendation yang sama tanpa mempertimbangkan kondisi user.
+
+==================================================
+10. SECURITY DEEP AUDIT
+=======================
+
+Audit seluruh API.
+
+Periksa:
+
+* authentication
+* authorization
+* role checks
+* IDOR
+* ownership validation
+* JWT handling
+* password hashing
+* input validation
+* SQL/Prisma injection risks
+* mass assignment
+* sensitive error messages
+* rate limiting
+* CORS
+* security headers
+* AI API key exposure
+
+Pastikan:
+
+STUDENT tidak bisa mengakses endpoint TEACHER.
+
+STUDENT tidak bisa membaca data siswa lain.
+
+TEACHER tidak bisa mengubah data di luar scope yang diizinkan.
+
+User tidak bisa mengakses resource hanya dengan mengganti ID URL.
+
+==================================================
+11. DATABASE & CONCURRENCY
+==========================
+
+Audit Prisma schema.
+
+Pastikan unique constraint dan index yang diperlukan benar-benar tersedia.
+
+Periksa terutama:
+
+* TopicMastery uniqueness student + course + topic.
+* QuizAnswer lookup/index.
+* WeakTopic lookup/index.
+* foreign keys.
+* cascading behavior.
+* nullable fields.
+* timestamp consistency.
+
+Audit race condition.
+
+Periksa:
+
+* duplicate quiz submission
+* duplicate answer
+* simultaneous mastery update
+* simultaneous training completion
+
+Gunakan transaction/atomic operation jika memang diperlukan.
+
+Jangan menambahkan transaction secara berlebihan jika tidak dibutuhkan.
+
+==================================================
+12. API CONTRACT
+================
+
+Audit seluruh endpoint frontend ↔ backend.
+
+Pastikan:
+
+* response shape konsisten.
+* error shape konsisten.
+* status code benar.
+* loading/error/empty state ditangani frontend.
+* frontend tidak mengasumsikan field yang sebenarnya optional.
+* null/empty array aman.
+* pagination konsisten.
+
+Cari mismatch API yang hanya muncul pada edge case.
+
+==================================================
+13. PERFORMANCE
+===============
+
+Audit query yang berpotensi N+1.
+
+Periksa:
+
+* dashboard queries
+* leaderboard
+* teacher intelligence
+* student profile
+* mastery aggregation
+* weak topic aggregation
+
+Gunakan include/select/aggregation secara tepat.
+
+Jangan melakukan query database berulang di dalam loop jika dapat dihindari.
+
+Tambahkan index hanya jika memang justified.
+
+Jangan overengineer.
+
+==================================================
+14. REALISTIC DATA TESTING
+==========================
+
+Pastikan seed/demo data mampu menghasilkan kondisi:
+
+* strong student
+* weak student
+* improving student
+* declining student
+* student tanpa histori
+* class dengan topic mastery tinggi
+* class dengan topic mastery rendah
+* assignment completed
+* assignment overdue
+* attendance rendah
+* repeated quiz failure
+
+Tujuannya agar intelligence engine benar-benar dapat diuji pada kondisi berbeda.
+
+==================================================
+15. FULL END-TO-END REGRESSION
+==============================
+
+Setelah semua audit selesai, jalankan kembali:
+
+* typecheck
+* lint
+* build frontend
+* build backend
+* Prisma validation/generate
+* seluruh tests
+* test-e2e.ts
+
+Jika ada error:
+
+JANGAN hanya melaporkan error.
+
+Cari root cause → perbaiki → jalankan ulang test.
+
+Ulangi sampai sistem stabil.
+
+==================================================
+16. SEARCH FOR HIDDEN PROBLEMS
+==============================
+
+Cari seluruh repository untuk:
+
+TODO
+FIXME
+HACK
+mock
+dummy
+fake
+hardcoded
+placeholder
+console.log
+unsafe query
+dead code
+unused service
+unused endpoint
+broken import
+temporary workaround
+
+Periksa juga code yang secara teknis berjalan tetapi tidak benar secara logic.
+
+Jangan menghapus sesuatu hanya karena terlihat tidak digunakan tanpa memahami dependency-nya.
+
+==================================================
+17. COMPETITION DEMO VERIFICATION
+=================================
+
+Simulasikan perjalanan user sebenarnya menggunakan database nyata:
+
+STUDENT LOGIN
+→ melihat dashboard
+→ melihat recommendation
+→ mengikuti learning material
+→ mengikuti quiz
+→ salah pada topic tertentu
+→ topic masuk WeakTopic
+→ sistem menghitung mastery
+→ AI training muncul
+→ student menjalankan training
+→ baseline dicatat
+→ adaptive questions diberikan
+→ training selesai
+→ post-training dihitung
+→ improvementDelta dicatat
+→ mastery berubah
+→ recommendation berubah
+
+Kemudian:
+
+TEACHER LOGIN
+→ melihat class intelligence
+→ melihat difficult topic
+→ melihat students at-risk
+→ melihat alasan
+→ melihat recommended intervention
+
+Pastikan semua perubahan benar-benar berasal dari database dan dapat ditelusuri.
+
+Ini harus menjadi demo utama Aksara.
+
+==================================================
+18. JANGAN MERUSAK YANG SUDAH BERHASIL
+======================================
+
+Hasil yang sudah terbukti harus tetap dipertahankan:
+
+* Mastery 69% / 26 topics pada test student.
+* Database terdeteksi sebagai weak topic.
+* Baseline 0%.
+* Post-training 100%.
+* Mastery 24 → 62.
+* Trend IMPROVING.
+* Normalisasi sebagai critical class topic.
+* 67% struggling.
+* 3 at-risk students.
+* leaderboard ranking valid.
+* duplicate answer protection.
+
+Jika perubahan code menyebabkan regression, perbaiki regression tersebut.
+
+==================================================
+19. SCOPE CONTROL
+=================
+
+JANGAN:
+
+* redesign UI besar-besaran.
+* membuat microservices.
+* menambahkan vector database.
+* menambahkan heavy ML.
+* membuat websocket hanya demi terlihat canggih.
+* menambahkan social features yang tidak relevan.
+* menambahkan gimmick AI.
+* menambahkan fitur yang tidak memperkuat learning loop.
+
+Prioritas:
+
+correctness
+→ intelligence
+→ integration
+→ reliability
+→ security
+→ measurable learning outcome
+→ performance
+
+==================================================
+20. FINAL DEFINITION OF DONE
+============================
+
+Aksara dianggap benar-benar selesai hanya jika:
+
+[ ] Authentication aman
+[ ] Authorization benar
+[ ] LMS berjalan
+[ ] Quiz berjalan
+[ ] Server-side scoring aman
+[ ] Leaderboard akurat
+[ ] Grade calculation benar
+[ ] TopicMastery dynamic
+[ ] TopicMastery explainable
+[ ] WeakTopic tersinkronisasi
+[ ] Closed-loop remediation berjalan
+[ ] Pre/post performance tersimpan
+[ ] Improvement delta benar
+[ ] AI context-aware
+[ ] AI adaptive
+[ ] AI output tervalidasi
+[ ] AI fallback bekerja
+[ ] Duplicate question prevention bekerja
+[ ] Student Profile menggunakan real data
+[ ] Next Best Action contextual
+[ ] Teacher Intelligence actionable
+[ ] At-risk detection explainable
+[ ] Database integrity benar
+[ ] Concurrency aman
+[ ] API contract konsisten
+[ ] Security audit selesai
+[ ] Performance tidak memiliki obvious bottleneck
+[ ] Empty/error states aman
+[ ] Seed realistis
+[ ] E2E regression passing
+[ ] Frontend build passing
+[ ] Backend build passing
+[ ] Typecheck passing
+[ ] Lint passing
+
+SETELAH SELESAI:
+
+Jangan hanya memberikan rekomendasi.
+
+Implementasikan seluruh perbaikan yang jelas berada dalam scope.
+
+Kemudian berikan final report yang ringkas tetapi konkret berisi:
+
+1. masalah yang ditemukan
+2. masalah yang diperbaiki
+3. file yang berubah
+4. schema/database changes
+5. security fixes
+6. intelligence/algorithm changes
+7. test yang dijalankan
+8. hasil test
+9. hasil E2E
+10. hal yang masih menjadi limitation jika memang ada
+
+Jangan mengklaim "production ready" jika masih ada failure yang belum diselesaikan.
+
+Setelah final verification ini benar-benar PASS, STOP menambah fitur backend baru.
+
+Tahap berikutnya adalah UI/UX dan visual design Aksara.

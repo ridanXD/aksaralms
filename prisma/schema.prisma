@@ -1,0 +1,436 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  avatar    String?  @db.Text
+  role      Role     @default(STUDENT)
+  isVerified Boolean @default(true)
+  phone      String?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  twoFactorBackupCodes String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+  taughtCourses Course[]
+  submissions Submission[]
+  quizResults QuizResult[]
+  quizAnswers QuizAnswer[]
+  grades Grade[]
+  attendanceCheckins AttendanceCheckin[]
+  progress Progress[]
+  leaderboardEntries LeaderboardEntry[]
+  trainingSessions TrainingSession[]
+  topicMasteries TopicMastery[]
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+model VerificationCode {
+  id        Int              @id @default(autoincrement())
+  email     String
+  code      String
+  type      VerificationType
+  expiresAt DateTime
+  used      Boolean          @default(false)
+  attempts  Int              @default(0)
+  createdAt DateTime         @default(now())
+
+  @@index([email, type])
+}
+
+enum VerificationType {
+  ACCOUNT_VERIFICATION
+  PASSWORD_RESET
+}
+
+model Course {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  code        String     @unique
+  teacherId   Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  teacher      User         @relation(fields: [teacherId], references: [id])
+  enrollments  Enrollment[]
+  modules      Module[]
+  attendanceSessions AttendanceSession[]
+  assignments  Assignment[]
+  grades Grade[]
+  quizSessions QuizSession[]
+  topicMasteries TopicMastery[]
+}
+
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  courseId  Int
+  joinedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Module {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  title       String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
+  materials Material[]
+}
+
+model Material {
+  id        Int      @id @default(autoincrement())
+  moduleId  Int
+  title     String
+  type      MaterialType @default(TEXT)
+  content   String?
+  fileUrl   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  module   Module      @relation(fields: [moduleId], references: [id])
+  progress Progress[]
+}
+
+enum MaterialType {
+  TEXT
+  VIDEO
+  IMAGE
+  FILE
+}
+
+model Progress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  materialId Int
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  user      User    @relation(fields: [userId], references: [id])
+  material  Material @relation(fields: [materialId], references: [id])
+
+  @@unique([userId, materialId])
+}
+
+model QuizSession {
+  id          Int           @id @default(autoincrement())
+  courseId    Int
+  title       String
+  description String?
+  isKingOfTheHill Boolean @default(false)
+  totalPoints Int?
+  maxScore    Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  course           Course           @relation(fields: [courseId], references: [id])
+  quizQuestions    QuizQuestion[]
+  quizAnswers      QuizAnswer[]
+  quizResults      QuizResult[]
+  leaderboardEntries LeaderboardEntry[]
+}
+
+model QuizQuestion {
+  id            Int        @id @default(autoincrement())
+  quizSessionId Int
+  question      String
+  topic         String
+  difficulty    QuestionDifficulty @default(MEDIUM)
+  type          String             @default("SINGLE_CHOICE")
+  explanation   String?
+  rubric        String?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quizSession QuizSession @relation(fields: [quizSessionId], references: [id])
+  options     QuizOption[]
+  answers     QuizAnswer[]
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model QuizOption {
+  id            Int     @id @default(autoincrement())
+  quizQuestionId Int
+  text          String
+  isCorrect     Boolean @default(false)
+  order         Int     @default(0)
+
+  quizQuestion QuizQuestion @relation(fields: [quizQuestionId], references: [id])
+  answers      QuizAnswer[]
+}
+
+model QuizAnswer {
+  id            Int      @id @default(autoincrement())
+  quizSessionId Int
+  userId        Int
+  questionId    Int
+  optionId      Int?
+  selectedOptionIds Int[] @default([])
+  essayAnswer   String?
+  aiScore       Float?
+  aiFeedback    String?
+  isCorrect     Boolean
+  responseTimeMs Int
+  points        Int      @default(0)
+  answeredAt    DateTime @default(now())
+
+  quizSession QuizSession @relation(fields: [quizSessionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  question    QuizQuestion @relation(fields: [questionId], references: [id])
+  option      QuizOption?  @relation(fields: [optionId], references: [id])
+
+  @@index([quizSessionId, userId])
+  @@index([questionId])
+}
+
+model QuizResult {
+  id            Int      @id @default(autoincrement())
+  quizSessionId Int
+  userId        Int
+  totalScore    Int
+  correctCount  Int
+  totalCount    Int
+  avgResponseMs Int?
+  aiSummary     String?
+  aiEvaluation  String?
+  aiRecommendations String?
+  completedAt   DateTime  @default(now())
+
+  quizSession QuizSession @relation(fields: [quizSessionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  weakTopics  WeakTopic[]
+  aiAnalyses  AIPerformanceAnalysis[]
+  trainingSessions TrainingSession[]
+  grades      Grade[]
+
+  @@index([userId, quizSessionId])
+}
+
+model WeakTopic {
+  id            Int      @id @default(autoincrement())
+  quizResultId    Int
+  topic           String
+  correctCount    Int      @default(0)
+  totalCount      Int      @default(0)
+  accuracy        Float
+
+  quizResult QuizResult @relation(fields: [quizResultId], references: [id])
+
+  @@index([quizResultId])
+  @@index([topic])
+}
+
+model TopicMastery {
+  id                 Int          @id @default(autoincrement())
+  userId             Int
+  courseId           Int?
+  topic              String
+  masteryScore       Float        @default(50.0)
+  confidence         Float        @default(0.5)
+  attemptCount       Int          @default(0)
+  correctCount       Int          @default(0)
+  accuracy           Float        @default(0.0)
+  recentAccuracy     Float        @default(0.0)
+  avgResponseMs      Int          @default(0)
+  trend              MasteryTrend @default(STABLE)
+  lastPracticedAt    DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  user               User         @relation(fields: [userId], references: [id])
+  course             Course?      @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId, topic])
+  @@index([userId, topic])
+  @@index([courseId, topic])
+}
+
+enum MasteryTrend {
+  IMPROVING
+  DECLINING
+  STABLE
+}
+
+model LeaderboardEntry {
+  id            Int      @id @default(autoincrement())
+  quizSessionId Int
+  userId        Int
+  score         Int
+  correctCount  Int
+  avgResponseMs Int
+  rank          Int?
+  updatedAt     DateTime @updatedAt
+
+  quizSession QuizSession @relation(fields: [quizSessionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([quizSessionId, userId])
+  @@index([quizSessionId, score])
+}
+
+model AttendanceSession {
+  id          Int                @id @default(autoincrement())
+  courseId    Int
+  title       String
+  description String?
+  code        String             @unique
+  expiresAt   DateTime
+  createdAt   DateTime           @default(now())
+
+  course Course @relation(fields: [courseId], references: [id])
+  checkins AttendanceCheckin[]
+}
+
+model AttendanceCheckin {
+  id                  Int      @id @default(autoincrement())
+  attendanceSessionId Int
+  userId              Int
+  checkedInAt         DateTime @default(now())
+
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id])
+  user              User @relation(fields: [userId], references: [id])
+
+  @@unique([attendanceSessionId, userId])
+}
+
+model Assignment {
+  id          Int        @id @default(autoincrement())
+  courseId    Int
+  title       String
+  description String?
+  deadline    DateTime
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
+  submissions Submission[]
+  grades   Grade[]
+}
+
+model Submission {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int
+  userId       Int
+  fileUrl      String?
+  content      String?
+  submittedAt  DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+  grade      Grade?
+
+  @@unique([assignmentId, userId])
+}
+
+model Grade {
+  id           Int      @id @default(autoincrement())
+  submissionId Int?     @unique
+  quizResultId Int?
+  assignmentId Int?
+  userId       Int
+  courseId     Int
+  score        Float
+  maxScore     Float
+  gradedAt     DateTime @default(now())
+  feedback     String?
+
+  user        User?        @relation(fields: [userId], references: [id])
+  course      Course?      @relation(fields: [courseId], references: [id])
+  submission  Submission?  @relation(fields: [submissionId], references: [id])
+  quizResult  QuizResult?  @relation(fields: [quizResultId], references: [id])
+  assignment  Assignment?  @relation(fields: [assignmentId], references: [id])
+
+  @@index([userId, courseId])
+}
+
+model AIPerformanceAnalysis {
+  id           Int      @id @default(autoincrement())
+  quizResultId Int
+  strongTopics  String?
+  weakTopics    String?
+  recommendedTopics String?
+  recommendedDifficulty String?
+  suggestedPractice String?
+  createdAt    DateTime @default(now())
+
+  quizResult QuizResult @relation(fields: [quizResultId], references: [id])
+  trainingSessions TrainingSession[]
+}
+
+model TrainingSession {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  quizResultId      Int?
+  aiAnalysisId      Int?
+  topic             String
+  difficulty        QuestionDifficulty @default(MEDIUM)
+  questionCount     Int      @default(5)
+  status            TrainingSessionStatus @default(IN_PROGRESS)
+  preAccuracy       Float?
+  postAccuracy      Float?
+  improvementDelta  Float?
+  createdAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  user        User? @relation(fields: [userId], references: [id])
+  quizResult  QuizResult? @relation(fields: [quizResultId], references: [id])
+  aiAnalysis  AIPerformanceAnalysis? @relation(fields: [aiAnalysisId], references: [id])
+  questions   GeneratedQuestion[]
+
+  @@index([userId, topic])
+}
+
+enum TrainingSessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model GeneratedQuestion {
+  id                Int      @id @default(autoincrement())
+  trainingSessionId Int
+  question          String
+  options           String[]
+  correctAnswer     String
+  explanation       String?
+  topic             String
+  difficulty        QuestionDifficulty @default(MEDIUM)
+  type              String             @default("SINGLE_CHOICE")
+  userAnswer        String?
+  isCorrect         Boolean?
+  answeredAt        DateTime?
+  order             Int      @default(0)
+
+  trainingSession TrainingSession @relation(fields: [trainingSessionId], references: [id])
+
+  @@index([trainingSessionId])
+}

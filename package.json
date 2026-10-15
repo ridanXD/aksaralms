@@ -1,0 +1,44 @@
+{
+  "name": "m-one",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aksara EdTech Platform - AI-Assisted Adaptive Learning Management System",
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run --prefix api dev",
+    "dev:all": "npm run dev:api & npm run dev:web",
+    "dev:api": "npm run --prefix api dev",
+    "dev:web": "npm run --prefix web dev",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm run --prefix api build",
+    "build:web": "npm run --prefix web build",
+    "start:api": "npm run --prefix api start",
+    "start:web": "npm run --prefix web start",
+    "seed": "npm run --prefix api seed",
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate dev",
+    "prisma:push": "npx prisma db push",
+    "prisma:studio": "npx prisma studio",
+    "test:api": "npm run --prefix api test:e2e",
+    "test:verify": "npm run --prefix api test:verify",
+    "lint": "npm run --prefix web lint"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.2",
+    "@types/node": "^20.11.30",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  }
+}
