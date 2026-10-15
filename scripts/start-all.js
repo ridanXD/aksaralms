@@ -1,12 +1,12 @@
 const { spawn } = require('child_process');
 
-console.log('[Runner] Starting Aksara LMS (API + Web)...');
+console.log('[Runner] Starting Aksara LMS (API on :8080 + Web on :3000)...');
 
-function runProcess(name, command, args) {
+function runProcess(name, command, args, customEnv) {
   const proc = spawn(command, args, {
     stdio: 'inherit',
     shell: true,
-    env: process.env,
+    env: { ...process.env, ...customEnv },
   });
 
   proc.on('error', (err) => {
@@ -20,8 +20,14 @@ function runProcess(name, command, args) {
   return proc;
 }
 
-const api = runProcess('API', 'npm', ['run', 'start:api']);
-const web = runProcess('WEB', 'npm', ['run', 'start:web']);
+const api = runProcess('API', 'npm', ['run', 'start:api'], {
+  PORT: process.env.API_PORT || '8080',
+});
+
+const web = runProcess('WEB', 'npm', ['run', 'start:web'], {
+  PORT: process.env.WEB_PORT || '3000',
+  HOSTNAME: '0.0.0.0',
+});
 
 function shutdown() {
   console.log('[Runner] Shutting down processes...');

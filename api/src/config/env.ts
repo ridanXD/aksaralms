@@ -6,7 +6,7 @@ function getEnv(key: string, fallback = ""): string {
 }
 
 export const env = {
-  port: parseInt(getEnv("PORT", "8080"), 10),
+  port: parseInt(getEnv("API_PORT", getEnv("PORT", "8080")), 10),
   databaseUrl: getEnv("DATABASE_URL"),
   jwtSecret: getEnv("JWT_SECRET", "dev-secret-key-change-in-prod"),
   aiProvider: getEnv("AI_PROVIDER", "gemini"),

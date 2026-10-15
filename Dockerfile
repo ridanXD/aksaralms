@@ -32,6 +32,7 @@ RUN chmod +x /app/entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV API_PORT=8080
 ENV INTERNAL_API_URL="http://127.0.0.1:8080/api/:path*"
 
 EXPOSE 3000
